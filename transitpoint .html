@@ -1,0 +1,1049 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransitPoint | Public Transport Access Finder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;background: #f5f7f5;color: #102a43;}
+        .panel {background: white;border: 1px solid #dce5eb;border-radius: 22px;box-shadow: 0 12px 35px rgba(16, 42, 67, 0.06);}
+        .section-label {
+            color: #0f766e;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 2px;
+        }
+
+        .field {
+            width: 100%;
+            padding: 13px 14px;
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            outline: none;
+            font-size: 14px;
+        }
+
+        .field:focus {
+            border-color: #0f9488;
+            box-shadow: 0 0 0 3px rgba(15, 148, 136, 0.12);
+        }
+
+        .primary-btn {
+            width: 100%;
+            background: #0f766e;
+            color: white;
+            font-weight: 700;
+            border-radius: 12px;
+            padding: 14px;
+            transition: 0.2s;
+        }
+
+        .primary-btn:hover {
+            background: #115e59;
+        }
+
+        .secondary-btn {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #dce5eb;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 700;
+            background: white;
+        }
+
+        .secondary-btn:hover {
+            background: #f0fdfa;
+            border-color: #99f6e4;
+        }
+
+        #map {
+            height: 530px;
+            width: 100%;
+            z-index: 1;
+            background: #eaf0ee;
+        }
+
+        .stop-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px;
+            cursor: pointer;
+            transition: 0.2s;
+            background: white;
+        }
+
+        .stop-card:hover {
+            border-color: #0f9488;
+            background: #f0fdfa;
+        }
+
+        .stop-card.active {
+            border-color: #0f766e;
+            background: #f0fdfa;
+            box-shadow: 0 0 0 1px #0f766e;
+        }
+
+        .status-box {
+            padding: 13px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .status-info {
+            background: #eff6ff;
+            color: #1e40af;
+        }
+
+        .status-success {
+            background: #f0fdfa;
+            color: #115e59;
+        }
+
+        .status-error {
+            background: #fff1f2;
+            color: #9f1239;
+        }
+
+        .status-loading {
+            background: #fefce8;
+            color: #854d0e;
+        }
+
+        .transport-tag {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 20px;
+            background: #e6fffb;
+            color: #115e59;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        @media (max-width: 768px) {
+            #map {
+                height: 380px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Navigation -->
+    <nav class="bg-white border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-5 py-4 flex justify-between items-center gap-4">
+            <a href="#" class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-2xl bg-teal-700 text-white flex items-center justify-center text-xl font-extrabold">
+                    T
+                </div>
+                <div>
+                    <h1 class="text-xl font-extrabold tracking-tight">TransitPoint</h1>
+                    <p class="text-xs text-slate-500">PUBLIC TRANSPORT ACCESS FINDER</p>
+                </div>
+            </a>
+
+            <a href="#search" class="hidden sm:inline-block bg-teal-50 text-teal-800 px-4 py-2 rounded-full text-sm font-bold">
+                Find transport
+            </a>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-7">
+
+        <!-- Hero section -->
+        <section class="rounded-3xl overflow-hidden bg-slate-900 text-white mb-7 relative">
+            <div class="absolute inset-0 opacity-30"
+                 style="background-image: linear-gradient(90deg,#102a43,transparent),url('https://images.unsplash.com/photo-1449824913935-59a10b8d2000?auto=format&fit=crop&w=1800&q=80'); background-size:cover; background-position:center;">
+            </div>
+
+            <div class="relative p-7 sm:p-10 md:p-12">
+                <p class="text-teal-300 uppercase tracking-[3px] text-xs font-extrabold mb-4">
+                    Your city, better connected
+                </p>
+
+                <h2 class="text-3xl sm:text-5xl font-extrabold leading-tight max-w-3xl">
+                    Find public transport stops around you.
+                </h2>
+
+                <p class="text-slate-200 mt-4 max-w-2xl leading-7">
+                    Explore mapped bus stops, railway stations and other transport points.
+                    Search an area, inspect available details and plan your next walk.
+                </p>
+
+                <div class="flex flex-wrap gap-3 mt-6 text-sm font-semibold">
+                    <span class="bg-white/10 rounded-full px-4 py-2">Nearby stops</span>
+                    <span class="bg-white/10 rounded-full px-4 py-2">Interactive map</span>
+                    <span class="bg-white/10 rounded-full px-4 py-2">Walking directions</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+            <!-- Search panel -->
+            <section id="search" class="panel p-5 sm:p-6 lg:col-span-3">
+                <p class="section-label mb-3">01 / SEARCH</p>
+                <h2 class="text-2xl font-extrabold mb-2">Where to?</h2>
+                <p class="text-sm text-slate-500 leading-6 mb-6">
+                    Enter a place, landmark or address to discover transport stops nearby.
+                </p>
+
+                <form id="searchForm">
+                    <label for="locationInput" class="block text-sm font-bold mb-2">
+                        Location
+                    </label>
+
+                    <input
+                        id="locationInput"
+                        class="field mb-4"
+                        type="text"
+                        placeholder="e.g. Jayanagar, Bengaluru"
+                        value="Jayanagar, Bengaluru"
+                        required
+                        minlength="2"
+                        maxlength="150"
+                    >
+
+                    <label for="transportType" class="block text-sm font-bold mb-2">
+                        Transport type
+                    </label>
+
+                    <select id="transportType" class="field mb-4">
+                        <option value="all">All mapped stops</option>
+                        <option value="bus">Bus stops</option>
+                        <option value="train">Railway stations</option>
+                        <option value="metro">Metro stations</option>
+                        <option value="other">Other transport stops</option>
+                    </select>
+
+                    <button id="searchButton" class="primary-btn" type="submit">
+                        Find nearby stops
+                    </button>
+                </form>
+
+                <button id="locationButton" class="secondary-btn mt-3">
+                    ◎ Use my current location
+                </button>
+
+                <button id="clearButton" class="secondary-btn mt-3">
+                    Clear results
+                </button>
+
+                <div id="status" class="status-box status-info mt-4" role="status" aria-live="polite">
+                    <strong>Ready when you are</strong>
+                    <p>Search for a location to discover mapped stops.</p>
+                </div>
+
+                <div class="mt-6">
+                    <div class="flex items-center justify-between gap-2 mb-3">
+                        <h3 class="font-extrabold">Nearby stops</h3>
+                        <span id="resultCount" class="text-xs text-slate-500">0 results</span>
+                    </div>
+
+                    <div id="stopList" class="space-y-3">
+                        <p class="text-sm text-slate-500">No search yet.</p>
+                    </div>
+
+                    <p class="text-xs text-slate-400 leading-5 mt-4">
+                        Results depend on community-mapped data. A missing result does not prove a stop is absent.
+                    </p>
+                </div>
+            </section>
+
+            <!-- Map panel -->
+            <section class="panel overflow-hidden lg:col-span-6">
+                <div class="p-5 border-b border-slate-100 flex justify-between items-center gap-3">
+                    <div>
+                        <p class="section-label mb-2">02 / EXPLORE</p>
+                        <h2 class="font-extrabold text-lg">Stops around your location</h2>
+                    </div>
+                    <span class="text-xs bg-slate-100 px-3 py-2 rounded-full whitespace-nowrap">
+                        Interactive map
+                    </span>
+                </div>
+
+                <div id="map" aria-label="Interactive map showing transport stops"></div>
+
+                <div class="p-4 border-t border-slate-100 flex flex-wrap gap-4 text-xs text-slate-500">
+                    <span>● Location searched</span>
+                    <span>● Mapped transport stops</span>
+                    <span>Map data: OpenStreetMap</span>
+                </div>
+            </section>
+
+            <!-- Details panel -->
+            <aside class="lg:col-span-3 space-y-5">
+                <section class="panel p-5">
+                    <p class="section-label mb-4">03 / STOP DETAILS</p>
+
+                    <div id="stopDetails" class="rounded-2xl bg-slate-50 p-4">
+                        <div class="w-11 h-11 rounded-xl bg-teal-50 flex items-center justify-center text-2xl mb-4">
+                            🚏
+                        </div>
+                        <h3 class="font-extrabold mb-2">Select a stop</h3>
+                        <p class="text-sm text-slate-500 leading-6">
+                            Choose a marker on the map or a result from the list to inspect available details.
+                        </p>
+                    </div>
+                </section>
+
+                <section class="rounded-3xl overflow-hidden bg-slate-900 text-white">
+                    <img
+                        src="https://images.unsplash.com/photo-1570125909232-eb263c188f7e?auto=format&fit=crop&w=900&q=80"
+                        alt="Public transport bus"
+                        class="w-full h-40 object-cover"
+                        onerror="this.style.display='none'"
+                    >
+
+                    <div class="p-5">
+                        <p class="text-teal-300 text-xs uppercase tracking-widest font-extrabold mb-2">
+                            Travel smarter
+                        </p>
+                        <h3 class="text-lg font-extrabold mb-2">Plan with confidence</h3>
+                        <p class="text-sm text-slate-300 leading-6">
+                            Use mapped stop information as a starting point. Confirm service times with the local transport operator.
+                        </p>
+                    </div>
+                </section>
+
+                <section class="panel p-5">
+                    <h3 class="font-extrabold mb-2">About this tool</h3>
+                    <p class="text-sm text-slate-500 leading-6">
+                        TransitPoint is a focused way to explore mapped public transport access.
+                        It does not provide live arrival times or guarantee that every stop is mapped.
+                    </p>
+                </section>
+            </aside>
+        </div>
+
+        <footer class="text-center text-xs text-slate-500 py-8">
+            TransitPoint · Map data © OpenStreetMap contributors · Built for public transport discovery
+        </footer>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // 1. Create the map and set an initial location.
+        const map = L.map("map").setView([12.9250, 77.5838], 13);
+
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        const stopLayer = L.layerGroup().addTo(map);
+
+        let currentCenter = [12.9250, 77.5838];
+        let currentStops = [];
+        let selectedStopId = null;
+        let searchMarker = null;
+        let searchController = null;
+
+        const form = document.getElementById("searchForm");
+        const locationInput = document.getElementById("locationInput");
+        const transportType = document.getElementById("transportType");
+        const searchButton = document.getElementById("searchButton");
+        const locationButton = document.getElementById("locationButton");
+        const clearButton = document.getElementById("clearButton");
+        const statusBox = document.getElementById("status");
+        const stopList = document.getElementById("stopList");
+        const stopDetails = document.getElementById("stopDetails");
+        const resultCount = document.getElementById("resultCount");
+
+        // Show a status message to the user.
+        function setStatus(title, message, type = "info") {
+            statusBox.className = "status-box mt-4 status-" + type;
+
+            statusBox.replaceChildren();
+
+            const heading = document.createElement("strong");
+            heading.textContent = title;
+
+            const paragraph = document.createElement("p");
+            paragraph.textContent = message;
+
+            statusBox.append(heading, paragraph);
+        }
+
+        // Calculate approximate straight-line distance between two coordinates.
+        function distanceKm(lat1, lon1, lat2, lon2) {
+            const radians = degrees => degrees * Math.PI / 180;
+            const dLat = radians(lat2 - lat1);
+            const dLon = radians(lon2 - lon1);
+
+            const a =
+                Math.sin(dLat / 2) ** 2 +
+                Math.cos(radians(lat1)) *
+                Math.cos(radians(lat2)) *
+                Math.sin(dLon / 2) ** 2;
+
+            return 6371 * 2 * Math.atan2(
+                Math.sqrt(a),
+                Math.sqrt(1 - a)
+            );
+        }
+
+        // Classify the transport stop using OpenStreetMap tags.
+        function getTransportType(tags) {
+            const railway = (tags.railway || "").toLowerCase();
+            const station = (tags.station || "").toLowerCase();
+            const publicTransport = (tags.public_transport || "").toLowerCase();
+            const highway = (tags.highway || "").toLowerCase();
+            const bus = (tags.bus || "").toLowerCase();
+            const name = (tags.name || "").toLowerCase();
+            const subway = (tags.subway || "").toLowerCase();
+
+            if (
+                railway === "subway_entrance" ||
+                railway === "subway" ||
+                station === "subway" ||
+                subway === "yes" ||
+                name.includes("metro")
+            ) {
+                return "metro";
+            }
+
+            if (
+                railway === "station" ||
+                railway === "halt" ||
+                railway === "tram_stop" ||
+                station === "train" ||
+                station === "light_rail"
+            ) {
+                return "train";
+            }
+
+            if (
+                highway === "bus_stop" ||
+                publicTransport === "platform" ||
+                publicTransport === "stop_position" ||
+                bus === "yes"
+            ) {
+                return "bus";
+            }
+
+            return "other";
+        }
+
+        // Create a readable name for a mapped stop.
+        function getStopName(tags) {
+            return tags.name ||
+                   tags["name:en"] ||
+                   tags.ref ||
+                   tags.operator ||
+                   "Unnamed transport stop";
+        }
+
+        // Apply the selected transport filter.
+        function getFilteredStops() {
+            const selectedType = transportType.value;
+
+            if (selectedType === "all") {
+                return currentStops;
+            }
+
+            return currentStops.filter(stop => stop.type === selectedType);
+        }
+
+        // Display stop results as clickable cards.
+        function renderStops() {
+            const filteredStops = getFilteredStops();
+
+            stopList.replaceChildren();
+            resultCount.textContent = filteredStops.length + " results";
+
+            if (filteredStops.length === 0) {
+                const emptyMessage = document.createElement("p");
+                emptyMessage.className = "text-sm text-slate-500 leading-6";
+                emptyMessage.textContent = currentStops.length === 0
+                    ? "No stops have been loaded yet. Search for a location first."
+                    : "No stops match this transport filter. Try another type.";
+
+                stopList.appendChild(emptyMessage);
+                return;
+            }
+
+            filteredStops.forEach(stop => {
+                const card = document.createElement("button");
+                card.type = "button";
+                card.className = "stop-card w-full text-left" +
+                    (selectedStopId === stop.id ? " active" : "");
+
+                const title = document.createElement("p");
+                title.className = "font-bold text-sm";
+                title.textContent = stop.name;
+
+                const tag = document.createElement("span");
+                tag.className = "transport-tag mt-2";
+                tag.textContent = stop.type.toUpperCase();
+
+                const distance = document.createElement("p");
+                distance.className = "text-xs text-slate-500 mt-2";
+                distance.textContent = stop.distance.toFixed(2) + " km away (straight-line)";
+
+                card.append(title, tag, distance);
+
+                card.addEventListener("click", () => selectStop(stop.id));
+
+                stopList.appendChild(card);
+            });
+        }
+
+        // Display details for the selected stop.
+        function selectStop(id) {
+            const stop = currentStops.find(item => item.id === id);
+
+            if (!stop) {
+                return;
+            }
+
+            selectedStopId = id;
+            renderStops();
+
+            stopDetails.replaceChildren();
+
+            const icon = document.createElement("div");
+            icon.className = "w-11 h-11 rounded-xl bg-teal-50 flex items-center justify-center text-2xl mb-4";
+            icon.textContent = stop.type === "bus" ? "🚌" :
+                               stop.type === "train" ? "🚆" :
+                               stop.type === "metro" ? "🚇" : "🚏";
+
+            const title = document.createElement("h3");
+            title.className = "font-extrabold text-lg mb-2";
+            title.textContent = stop.name;
+
+            const type = document.createElement("span");
+            type.className = "transport-tag";
+            type.textContent = stop.type.toUpperCase();
+
+            const distance = document.createElement("p");
+            distance.className = "text-sm text-slate-600 mt-4";
+            distance.textContent = "Approx. " + stop.distance.toFixed(2) +
+                                   " km from the searched location, in a straight line.";
+
+            const coordinates = document.createElement("p");
+            coordinates.className = "text-xs text-slate-500 mt-3";
+            coordinates.textContent = "Coordinates: " +
+                stop.lat.toFixed(5) + ", " + stop.lon.toFixed(5);
+
+            const operator = document.createElement("p");
+            operator.className = "text-sm text-slate-600 mt-3";
+            operator.textContent = stop.tags.operator
+                ? "Operator: " + stop.tags.operator
+                : "Operator information is not available in the map data.";
+
+            const directions = document.createElement("a");
+            directions.className = "block text-center bg-teal-700 text-white font-bold rounded-xl p-3 mt-5 text-sm";
+            directions.textContent = "Open walking directions";
+            directions.href =
+                "https://www.openstreetmap.org/directions?engine=fossgis_osrm_foot&route=" +
+                currentCenter[0] + "%2C" + currentCenter[1] + "%3B" +
+                stop.lat + "%2C" + stop.lon;
+            directions.target = "_blank";
+            directions.rel = "noopener noreferrer";
+
+            stopDetails.append(
+                icon, title, type, distance, coordinates, operator, directions
+            );
+
+            map.setView([stop.lat, stop.lon], 16);
+            stop.marker.openPopup();
+        }
+
+        // Geocode the place typed by the user.
+        async function findCoordinates(query, signal) {
+            const url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=" +
+                        encodeURIComponent(query);
+
+            const response = await fetch(url, {
+                signal: signal,
+                headers: {
+                    "Accept": "application/json"
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error("The location search service is unavailable. Please try again.");
+            }
+
+            const data = await response.json();
+
+            if (!Array.isArray(data) || data.length === 0) {
+                throw new Error("Location not found. Try a nearby landmark or a more specific address.");
+            }
+
+            return {
+                lat: Number(data[0].lat),
+                lon: Number(data[0].lon),
+                name: data[0].display_name
+            };
+        }
+
+        // Fetch public transport data from the Overpass API.
+        async function findNearbyStops(lat, lon, signal) {
+            const query = `
+                [out:json][timeout:25];
+                (
+                    node(around:3000,${lat},${lon})["highway"="bus_stop"];
+                    node(around:3000,${lat},${lon})["public_transport"~"platform|stop_position"];
+                    node(around:3000,${lat},${lon})["railway"~"station|halt|tram_stop|subway_entrance"];
+                    node(around:3000,${lat},${lon})["station"~"subway|train|light_rail"];
+                    way(around:3000,${lat},${lon})["railway"="station"];
+                    relation(around:3000,${lat},${lon})["railway"="station"];
+                );
+                out center tags;
+            `;
+
+            const endpoints = [
+                "https://overpass-api.de/api/interpreter",
+                "https://overpass.kumi.systems/api/interpreter"
+            ];
+
+            let lastError = null;
+
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(endpoint, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
+                        },
+                        body: "data=" + encodeURIComponent(query),
+                        signal: signal
+                    });
+
+                    if (!response.ok) {
+                        throw new Error("The map data service returned an error.");
+                    }
+
+                    const data = await response.json();
+
+                    if (!data || !Array.isArray(data.elements)) {
+                        throw new Error("The map data response was not in the expected format.");
+                    }
+
+                    return data.elements;
+                } catch (error) {
+                    if (error.name === "AbortError") {
+                        throw error;
+                    }
+
+                    lastError = error;
+                }
+            }
+            throw lastError || new Error("Unable to connect to the map data services.");
+        }
+        // Convert returned map elements into our stop objects.
+        function prepareStops(elements, centerLat, centerLon) {
+            const stops = [];
+            const seen = new Set();
+
+            elements.forEach(element => {
+                const tags = element.tags || {};
+                const type = getTransportType(tags);
+
+                let lat = element.lat;
+                let lon = element.lon;
+
+                if (lat == null && element.center) {
+                    lat = element.center.lat;
+                    lon = element.center.lon;
+                }
+
+                if (lat == null || lon == null) {
+                    return;
+                }
+
+                if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon))) {
+                    return;
+                }
+
+                const key = Number(lat).toFixed(5) + "," + Number(lon).toFixed(5);
+
+                if (seen.has(key)) {
+                    return;
+                }
+
+                seen.add(key);
+
+                stops.push({
+                    id: String(element.type) + "-" + element.id,
+                    name: getStopName(tags),
+                    type: type,
+                    lat: Number(lat),
+                    lon: Number(lon),
+                    distance: distanceKm(centerLat, centerLon, Number(lat), Number(lon)),
+                    tags: tags,
+                    marker: null
+                });
+            });
+
+            stops.sort((a, b) => a.distance - b.distance);
+
+            return stops;
+        }
+
+        // Draw map markers for the currently selected transport filter.
+        function renderMarkers() {
+            stopLayer.clearLayers();
+
+            const filteredStops = getFilteredStops();
+
+            filteredStops.forEach(stop => {
+                const marker = L.marker([stop.lat, stop.lon]);
+
+                marker.bindPopup(
+                    "<strong>" + escapeHTML(stop.name) + "</strong><br>" +
+                    escapeHTML(stop.type.toUpperCase())
+                );
+
+                marker.on("click", () => selectStop(stop.id));
+
+                marker.addTo(stopLayer);
+                stop.marker = marker;
+            });
+
+            renderStops();
+        }
+
+        // Escape text before placing it inside popup HTML.
+        function escapeHTML(value) {
+            return String(value).replace(/[&<>"']/g, character => ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#039;"
+            })[character]);
+        }
+
+        // Main search event.
+        form.addEventListener("submit", async event => {
+            event.preventDefault();
+
+            const query = locationInput.value.trim();
+
+            if (query.length < 2) {
+                setStatus("Check your input", "Enter at least two characters for a location.", "error");
+                locationInput.focus();
+                return;
+            }
+
+            if (searchController) {
+                searchController.abort();
+            }
+
+            searchController = new AbortController();
+            const signal = searchController.signal;
+
+            searchButton.disabled = true;
+            searchButton.textContent = "Searching...";
+            setStatus("Searching for location", "Finding the location and checking mapped transport stops.", "loading");
+
+            try {
+                const place = await findCoordinates(query, signal);
+
+                currentCenter = [place.lat, place.lon];
+
+                map.setView(currentCenter, 14);
+
+                if (searchMarker) {
+                    map.removeLayer(searchMarker);
+                }
+
+                searchMarker = L.marker(currentCenter)
+                    .addTo(map)
+                    .bindPopup("<strong>Searched location</strong><br>" + escapeHTML(query))
+                    .openPopup();
+
+                setStatus("Location found", "Checking mapped transport stops within approximately 3 km.", "loading");
+
+                const elements = await findNearbyStops(place.lat, place.lon, signal);
+
+                currentStops = prepareStops(elements, place.lat, place.lon);
+                selectedStopId = null;
+
+                renderMarkers();
+
+                stopDetails.innerHTML = `
+                    <div class="w-11 h-11 rounded-xl bg-teal-50 flex items-center justify-center text-2xl mb-4">🚏</div>
+                    <h3 class="font-extrabold mb-2">Select a stop</h3>
+                    <p class="text-sm text-slate-500 leading-6">Choose a marker or result to view available details.</p>
+                `;
+
+                if (currentStops.length === 0) {
+                    setStatus(
+                        "No stops found",
+                        "No matching stops were returned near this location. Try another area or check again later.",
+                        "info"
+                    );
+                } else {
+                    setStatus(
+                        "Search complete",
+                        "Found " + currentStops.length + " mapped transport stops near " + query + ". Select one to see its details.",
+                        "success"
+                    );
+
+                    if (getFilteredStops().length === 0) {
+                        setStatus(
+                            "No matching transport type",
+                            "Stops were found, but none match the selected filter. Try All mapped stops.",
+                            "info"
+                        );
+                    }
+                }
+
+            } catch (error) {
+                if (error.name === "AbortError") {
+                    return;
+                }
+
+                console.error("TransitPoint search error:", error);
+
+                setStatus(
+                    "Search could not be completed",
+                    error.message || "A network or map service error occurred. Check your internet connection and try again.",
+                    "error"
+                );
+
+                stopList.replaceChildren();
+
+                const message = document.createElement("p");
+                message.className = "text-sm text-slate-500 leading-6";
+                message.textContent = "No results are available for this search. Please try again.";
+                stopList.appendChild(message);
+
+            } finally {
+                searchButton.disabled = false;
+                searchButton.textContent = "Find nearby stops";
+            }
+        });
+
+        // Event: change the transport filter without searching again.
+        transportType.addEventListener("change", () => {
+            renderMarkers();
+
+            const visibleStops = getFilteredStops();
+
+            if (currentStops.length > 0 && visibleStops.length === 0) {
+                setStatus("No matching stops", "Choose another transport type to see available results.", "info");
+            } else if (currentStops.length > 0) {
+                setStatus("Filter updated", "Showing " + visibleStops.length + " stops for the selected type.", "success");
+            }
+        });
+
+        // Event: use the browser's current location.
+        locationButton.addEventListener("click", () => {
+            if (!navigator.geolocation) {
+                setStatus("Location unavailable", "Your browser does not support location access. Enter a place manually.", "error");
+                return;
+            }
+
+            locationButton.disabled = true;
+            locationButton.textContent = "Finding your location...";
+            setStatus("Waiting for location", "Allow location access in your browser if prompted.", "loading");
+
+            navigator.geolocation.getCurrentPosition(
+                position => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+
+                    locationInput.value = lat + ", " + lon;
+                    locationButton.disabled = false;
+                    locationButton.textContent = "◎ Use my current location";
+
+                    // Search coordinates directly instead of geocoding them.
+                    searchByCoordinates(lat, lon);
+                },
+                error => {
+                    locationButton.disabled = false;
+                    locationButton.textContent = "◎ Use my current location";
+
+                    let message = "Could not access your location. Enter a place manually.";
+
+                    if (error.code === error.PERMISSION_DENIED) {
+                        message = "Location permission was denied. Allow it in browser settings or enter a place manually.";
+                    } else if (error.code === error.TIMEOUT) {
+                        message = "Location request timed out. Please try again.";
+                    }
+
+                    setStatus("Location unavailable", message, "error");
+                },
+                {
+                    enableHighAccuracy: false,
+                    timeout: 12000,
+                    maximumAge: 60000
+                }
+            );
+        });
+
+        // Search nearby stops directly from coordinates.
+        async function searchByCoordinates(lat, lon) {
+            if (searchController) {
+                searchController.abort();
+            }
+
+            searchController = new AbortController();
+            const signal = searchController.signal;
+
+            searchButton.disabled = true;
+            searchButton.textContent = "Searching...";
+            setStatus("Location found", "Loading nearby transport stops.", "loading");
+
+            try {
+                currentCenter = [lat, lon];
+                map.setView(currentCenter, 15);
+
+                if (searchMarker) {
+                    map.removeLayer(searchMarker);
+                }
+
+                searchMarker = L.marker(currentCenter)
+                    .addTo(map)
+                    .bindPopup("<strong>Your current location</strong>")
+                    .openPopup();
+
+                const elements = await findNearbyStops(lat, lon, signal);
+
+                currentStops = prepareStops(elements, lat, lon);
+                selectedStopId = null;
+
+                renderMarkers();
+
+                if (currentStops.length > 0) {
+                    setStatus(
+                        "Search complete",
+                        "Found " + currentStops.length + " mapped stops near your location.",
+                        "success"
+                    );
+                } else {
+                    setStatus(
+                        "No stops found",
+                        "No matching stops were returned. Try searching for a nearby landmark.",
+                        "info"
+                    );
+                }
+
+            } catch (error) {
+                if (error.name !== "AbortError") {
+                    console.error("Nearby search error:", error);
+                    setStatus("Search failed", error.message || "Could not load transport stops. Please try again.", "error");
+                }
+            } finally {
+                searchButton.disabled = false;
+                searchButton.textContent = "Find nearby stops";
+            }
+        }
+
+        // Event: clear the results and reset the interface.
+        clearButton.addEventListener("click", () => {
+            if (searchController) {
+                searchController.abort();
+                searchController = null;
+            }
+
+            currentStops = [];
+            selectedStopId = null;
+
+            stopLayer.clearLayers();
+
+            if (searchMarker) {
+                map.removeLayer(searchMarker);
+                searchMarker = null;
+            }
+
+            stopList.replaceChildren();
+
+            const emptyMessage = document.createElement("p");
+            emptyMessage.className = "text-sm text-slate-500";
+            emptyMessage.textContent = "No search yet.";
+            stopList.appendChild(emptyMessage);
+
+            resultCount.textContent = "0 results";
+
+            stopDetails.innerHTML = `
+                <div class="w-11 h-11 rounded-xl bg-teal-50 flex items-center justify-center text-2xl mb-4">🚏</div>
+                <h3 class="font-extrabold mb-2">Select a stop</h3>
+                <p class="text-sm text-slate-500 leading-6">Search for a place and select a stop to inspect details.</p>
+            `;
+
+            setStatus("Results cleared", "Enter a location to start a new search.", "info");
+
+            searchButton.disabled = false;
+            searchButton.textContent = "Find nearby stops";
+
+            map.setView([12.9250, 77.5838], 13);
+        });
+
+        // Event: validate user input as they type.
+        locationInput.addEventListener("input", () => {
+            if (locationInput.value.trim().length === 0) {
+                locationInput.setCustomValidity("Please enter a location.");
+            } else if (locationInput.value.trim().length < 2) {
+                locationInput.setCustomValidity("Enter at least two characters.");
+            } else {
+                locationInput.setCustomValidity("");
+            }
+        });
+
+        // Allow saved stops to be stored locally.
+        // Event: save a selected stop when the user presses S.
+        document.addEventListener("keydown", event => {
+            if (event.key.toLowerCase() !== "s" ||
+                event.ctrlKey || event.altKey || event.metaKey) {
+                return;
+            }
+
+            const active = document.activeElement;
+            if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) {
+                return;
+            }
+
+            const stop = currentStops.find(item => item.id === selectedStopId);
+
+            if (!stop) {
+                return;
+            }
+
+            try {
+                const saved = JSON.parse(localStorage.getItem("transitpointSavedStops") || "[]");
+                const alreadySaved = saved.some(item => item.id === stop.id);
+
+                if (!alreadySaved) {
+                    saved.push({
+                        id: stop.id,
+                        name: stop.name,
+                        type: stop.type,
+                        lat: stop.lat,
+                        lon: stop.lon
+                    });
+
+                    localStorage.setItem("transitpointSavedStops", JSON.stringify(saved));
+                    setStatus("Stop saved", stop.name + " was saved in this browser. Press S on a selected stop to save another.", "success");
+                } else {
+                    setStatus("Already saved", "This stop is already in your saved list.", "info");
+                }
+            } catch (error) {
+                setStatus("Could not save stop", "Local browser storage is unavailable.", "error");
+            }
+        });
+
+        // Make sure Leaflet calculates the correct size after the page loads.
+        window.addEventListener("load", () => {
+            setTimeout(() => map.invalidateSize(), 200);
+        });
+    </script>
+
+</body>
+</html>
